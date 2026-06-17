@@ -2032,4 +2032,136 @@ function Fontes({ contacts, setContacts, showToast }) {
       if (c.status === 'interagiu') map[origem].interagiu += 1;
       if (c.bairro && c.bairro !== 'Não informado') map[origem].comBairro += 1;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    return Object.values(map).sort((a, b) => b.total - a.total);const total = contacts.length;
+
+  const selectedContacts = useMemo(() => {
+    if (!selected) return [];
+    return contacts.filter(c => (c.origem || 'Sem origem definida') === selected);
+  }, [contacts, selected]);
+
+  function startRename(fonte) {
+    setRenaming(fonte);
+    setRenameValue(fonte);
+  }
+
+  function confirmRename() {
+    const novo = renameValue.trim();
+    if (!novo || novo === renaming) {
+      setRenaming(null);
+      return;
+    }
+    setContacts(prev => prev.map(c => (c.origem || 'Sem origem definida') === renaming ? { ...c, origem: novo } : c));
+    if (selected === renaming) setSelected(novo);
+    showToast('Fonte renomeada');
+    setRenaming(null);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-display text-lg font-bold text-white">Fontes de contato</h2>
+        <p className="text-sm text-gray-400 mt-1">Acompanhe de onde vêm os contatos da base e o desempenho de cada origem.</p>
+      </div>
+
+      {fontes.length === 0 ? (
+        <EmptyState text="Nenhuma fonte registrada ainda." />
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {fontes.map(f => {
+            const pct = total > 0 ? Math.round((f.total / total) * 100) : 0;
+            const isSelected = selected === f.nome;
+            return (
+              <div
+                key={f.nome}
+                className="rounded-lg p-4 cursor-pointer transition-colors"
+                style={{
+                  background: isSelected ? 'rgba(0,170,204,0.08)' : 'rgba(255,255,255,0.02)',
+                  border: isSelected ? '1px solid #00AACC' : '1px solid rgba(255,255,255,0.08)',
+                }}
+                onClick={() => setSelected(isSelected ? null : f.nome)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  {renaming === f.nome ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      onBlur={confirmRename}
+                      onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(null); }}
+                      className="flex-1 px-2 py-1 rounded text-sm text-white font-display font-semibold"
+                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #00AACC' }}
+                    />
+                  ) : (
+                    <span className="font-display font-semibold text-white">{f.nome}</span>
+                  )}
+                  <span className="font-mono text-sm flex-shrink-0" style={{ color: '#00AACC' }}>{f.total}</span>
+                </div>
+
+                <div className="w-full h-1.5 rounded-full overflow-hidden mt-2" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#1565C0' }}></div>
+                </div>
+
+                <div className="flex gap-4 mt-2 text-xs text-gray-400"><span>{pct}% da base</span>
+                  <span>{f.interagiu} interagiram</span>
+                  <span>{f.comBairro} c/ bairro</span>
+                </div>
+
+                {renaming !== f.nome && (
+                  <button
+                    onClick={e => { e.stopPropagation(); startRename(f.nome); }}
+                    className="text-xs mt-2"
+                    style={{ color: '#9AA5B8' }}
+                  >
+                    Renomear fonte
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {selected && (
+        <div className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display font-semibold text-white text-sm uppercase tracking-wide">
+              Contatos — {selected} ({selectedContacts.length})
+            </h3>
+            <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white"><X size={16} /></button>
+          </div>
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Nome</th>
+                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Telefone</th>
+                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Bairro</th>
+                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedContacts.slice(0, 50).map(c => (
+                  <tr key={c.id} className="border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <td className="px-3 py-2 text-white">{c.nome}</td>
+                    <td className="px-3 py-2 text-gray-400 font-mono">{c.telefone}</td>
+                    <td className={`px-3 py-2 ${c.bairro === 'Não informado' ? 'text-red-400' : 'text-gray-300'}`}>{c.bairro}</td>
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: `${STATUS_MAP[c.status]?.color}22`, color: STATUS_MAP[c.status]?.color }}>
+                        {STATUS_MAP[c.status]?.label || c.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {selectedContacts.length > 50 && (
+            <p className="text-xs text-gray-500 mt-2 text-center">Mostrando 50 de {selectedContacts.length} contatos.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+                  
