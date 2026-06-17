@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, BarChart3, MessageCircleQuestion, Trophy, Plus, Search, Upload, Download, X, Check, ChevronRight, MapPin, TrendingUp, AlertCircle, MessageCircle, Layers } from 'lucide-react';
+import { Users, BarChart3, MessageCircleQuestion, Trophy, Plus, Search, Upload, Download, X, Check, ChevronRight, MapPin, TrendingUp, AlertCircle, MessageCircle, Layers, LogOut, Lock, Mail } from 'lucide-react';
+import { db, auth } from './firebase';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 // ---------- Constants ----------
 
@@ -24,59 +27,209 @@ const PAUTAS = [
   'Infraestrutura/Obras', 'Meio ambiente', 'Esporte e lazer', 'Outro / não informado'
 ];
 
-// ---------- Storage helpers ----------
+// ---------- Firestore helpers ----------
+// Todos os dados do CRM ficam num único documento compartilhado,
+// assim toda a equipe (Estado-Maior) vê e edita a mesma base em tempo real.
 
-const STORAGE_KEY = 'crm-friburgo-data-v1';
+const CRM_DOC_REF = doc(db, 'crm', 'dados-gerais');
 
 async function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const snap = await getDoc(CRM_DOC_REF);
+    if (snap.exists()) return snap.data();
   } catch (e) {
-    // not found yet
+    console.error('Erro ao carregar dados do Firestore', e);
   }
   return null;
 }
 
 async function saveData(data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    await setDoc(CRM_DOC_REF, data);
   } catch (e) {
-    console.error('Erro ao salvar', e);
+    console.error('Erro ao salvar no Firestore', e);
   }
+}
+
+function subscribeToData(callback) {
+  return onSnapshot(CRM_DOC_REF, (snap) => {
+    if (snap.exists()) callback(snap.data());
+  }, (error) => {
+    console.error('Erro na escuta em tempo real', error);
+  });
 }
 
 // ---------- Main App ----------
 
-export default function App() {
+
+export default function AppWrapper() {
+  const [user, setUser] = useState(undefined); // undefined = carregando, null = não logado
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser || null);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: '#0A1226' }}>
+        <div className="font-mono text-sm" style={{ color: '#00AACC' }}>CARREGANDO...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  return <App user={user} />;
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('E-mail ou senha incorretos.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('E-mail inválido.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Muitas tentativas. Aguarde um momento e tente novamente.');
+      } else {
+        setError('Não foi possível entrar. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center px-4" style={{ background: '#0A1226', fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+        .font-display { font-family: 'Rajdhani', sans-serif; }
+        .font-mono { font-family: 'Share Tech Mono', monospace; }
+      `}</style>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <div className="font-mono text-xs tracking-widest mb-1" style={{ color: '#00AACC' }}>QG MARINS 2026 · ACESSO RESTRITO</div>
+          <h1 className="font-display text-2xl font-bold text-white">CRM Pré-Campanha</h1>
+          <p className="text-sm text-gray-400 mt-1">Nova Friburgo</p>
+        </div>
+        <form onSubmit={handleLogin} className="rounded-lg p-6 space-y-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,170,204,0.2)' }}>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5 font-medium">E-mail</label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="seu@email.com"
+                className="w-full pl-9 pr-3 py-2.5 rounded text-sm text-white"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5 font-medium">Senha</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-9 pr-3 py-2.5 rounded text-sm text-white"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </div>
+          </div>
+          {error && (
+            <div className="text-xs px-3 py-2 rounded" style={{ background: 'rgba(214,69,69,0.1)', color: '#D64545', border: '1px solid rgba(214,69,69,0.3)' }}>
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg text-sm font-display font-semibold"
+            style={{ background: '#00AACC', color: '#0A1226', opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Acesso restrito ao Estado-Maior da campanha. Contas criadas pelo administrador.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function App({ user }) {
   const [contacts, setContacts] = useState([]);
   const [enquetes, setEnquetes] = useState([]);
   const [tab, setTab] = useState('painel');
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
+  // Carrega dados iniciais e escuta atualizações em tempo real do Firestore
   useEffect(() => {
+    let firstLoad = true;
+    const unsubscribe = subscribeToData((data) => {
+      setContacts(data.contacts || []);
+      setEnquetes(data.enquetes || []);
+      if (firstLoad) {
+        setLoaded(true);
+        firstLoad = false;
+      }
+    });
+
+    // Garante que o documento existe; se não existir, cria vazio
     (async () => {
       const data = await loadData();
-      if (data) {
-        setContacts(data.contacts || []);
-        setEnquetes(data.enquetes || []);
-      } else {
-        setContacts([]);
-        setEnquetes([]);
+      if (!data) {
+        await saveData({ contacts: [], enquetes: [] });
       }
       setLoaded(true);
     })();
+
+    return () => unsubscribe();
   }, []);
 
+  // Salva no Firestore sempre que contatos ou enquetes mudam localmente
   useEffect(() => {
     if (!loaded) return;
-    saveData({ contacts, enquetes });
+    setSyncing(true);
+    const timeout = setTimeout(() => {
+      saveData({ contacts, enquetes }).finally(() => setSyncing(false));
+    }, 400); // pequeno debounce para não disparar uma escrita por tecla digitada
+    return () => clearTimeout(timeout);
   }, [contacts, enquetes, loaded]);
 
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
+  }
+
+  async function handleLogout() {
+    if (!window.confirm('Deseja realmente encerrar a sessão?')) return;
+    await signOut(auth);
   }
 
   const tabs = [
@@ -114,7 +267,7 @@ export default function App() {
         }
       `}</style>
 
-      <Header />
+      <Header user={user} syncing={syncing} onLogout={handleLogout} />
 
       <div className="max-w-6xl mx-auto px-4 pb-24">
         <nav className="flex gap-2 mt-4 mb-6 overflow-x-auto scrollbar-thin">
@@ -163,17 +316,31 @@ export default function App() {
 
 // ---------- Header ----------
 
-function Header() {
+function Header({ user, syncing, onLogout }) {
   return (
     <header style={{ background: 'linear-gradient(135deg, #0D1E6E 0%, #0A1226 100%)', borderBottom: '1px solid rgba(0,170,204,0.3)' }}>
-      <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
-        <div>
+      <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <div className="font-mono text-xs tracking-widest" style={{ color: '#00AACC' }}>QG MARINS 2026 · MÓDULO S5</div>
-          <h1 className="font-display text-2xl font-bold text-white mt-1">CRM Pré-Campanha — Nova Friburgo</h1>
+          <h1 className="font-display text-2xl font-bold text-white mt-1 truncate">CRM Pré-Campanha — Nova Friburgo</h1>
         </div>
-        <div className="hidden sm:flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded" style={{ background: 'rgba(0,170,204,0.1)', color: '#00AACC', border: '1px solid rgba(0,170,204,0.3)' }}>
-          <span className="w-2 h-2 rounded-full" style={{ background: '#00AACC' }}></span>
-          OPERACIONAL
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded" style={{ background: 'rgba(0,170,204,0.1)', color: '#00AACC', border: '1px solid rgba(0,170,204,0.3)' }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: syncing ? '#F5A623' : '#00AACC' }}></span>
+            {syncing ? 'SINCRONIZANDO...' : 'OPERACIONAL'}
+          </div>
+          {user?.email && (
+            <span className="hidden lg:inline text-xs text-gray-400 max-w-[160px] truncate">{user.email}</span>
+          )}
+          <button
+            onClick={onLogout}
+            title="Encerrar sessão"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium"
+            style={{ background: 'rgba(255,255,255,0.05)', color: '#9AA5B8', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Saída</span>
+          </button>
         </div>
       </div>
     </header>
@@ -1866,138 +2033,3 @@ function Fontes({ contacts, setContacts, showToast }) {
       if (c.bairro && c.bairro !== 'Não informado') map[origem].comBairro += 1;
     });
     return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [contacts]);
-
-  const total = contacts.length;
-
-  const selectedContacts = useMemo(() => {
-    if (!selected) return [];
-    return contacts.filter(c => (c.origem || 'Sem origem definida') === selected);
-  }, [contacts, selected]);
-
-  function startRename(fonte) {
-    setRenaming(fonte);
-    setRenameValue(fonte);
-  }
-
-  function confirmRename() {
-    const novo = renameValue.trim();
-    if (!novo || novo === renaming) {
-      setRenaming(null);
-      return;
-    }
-    setContacts(prev => prev.map(c => (c.origem || 'Sem origem definida') === renaming ? { ...c, origem: novo } : c));
-    if (selected === renaming) setSelected(novo);
-    showToast('Fonte renomeada');
-    setRenaming(null);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-display text-lg font-bold text-white">Fontes de contato</h2>
-        <p className="text-sm text-gray-400 mt-1">Acompanhe de onde vêm os contatos da base e o desempenho de cada origem.</p>
-      </div>
-
-      {fontes.length === 0 ? (
-        <EmptyState text="Nenhuma fonte registrada ainda." />
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {fontes.map(f => {
-            const pct = total > 0 ? Math.round((f.total / total) * 100) : 0;
-            const isSelected = selected === f.nome;
-            return (
-              <div
-                key={f.nome}
-                className="rounded-lg p-4 cursor-pointer transition-colors"
-                style={{
-                  background: isSelected ? 'rgba(0,170,204,0.08)' : 'rgba(255,255,255,0.02)',
-                  border: isSelected ? '1px solid #00AACC' : '1px solid rgba(255,255,255,0.08)',
-                }}
-                onClick={() => setSelected(isSelected ? null : f.nome)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  {renaming === f.nome ? (
-                    <input
-                      autoFocus
-                      value={renameValue}
-                      onChange={e => setRenameValue(e.target.value)}
-                      onClick={e => e.stopPropagation()}
-                      onBlur={confirmRename}
-                      onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(null); }}
-                      className="flex-1 px-2 py-1 rounded text-sm text-white font-display font-semibold"
-                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #00AACC' }}
-                    />
-                  ) : (
-                    <span className="font-display font-semibold text-white">{f.nome}</span>
-                  )}
-                  <span className="font-mono text-sm flex-shrink-0" style={{ color: '#00AACC' }}>{f.total}</span>
-                </div>
-
-                <div className="w-full h-1.5 rounded-full overflow-hidden mt-2" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#1565C0' }}></div>
-                </div>
-
-                <div className="flex gap-4 mt-2 text-xs text-gray-400">
-                  <span>{pct}% da base</span>
-                  <span>{f.interagiu} interagiram</span>
-                  <span>{f.comBairro} c/ bairro</span>
-                </div>
-
-                {renaming !== f.nome && (
-                  <button
-                    onClick={e => { e.stopPropagation(); startRename(f.nome); }}
-                    className="text-xs mt-2"
-                    style={{ color: '#9AA5B8' }}
-                  >
-                    Renomear fonte
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {selected && (
-        <div className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-semibold text-white text-sm uppercase tracking-wide">
-              Contatos — {selected} ({selectedContacts.length})
-            </h3>
-            <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white"><X size={16} /></button>
-          </div>
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Nome</th>
-                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Telefone</th>
-                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Bairro</th>
-                  <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wide text-gray-400">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedContacts.slice(0, 50).map(c => (
-                  <tr key={c.id} className="border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <td className="px-3 py-2 text-white">{c.nome}</td>
-                    <td className="px-3 py-2 text-gray-400 font-mono">{c.telefone}</td>
-                    <td className={`px-3 py-2 ${c.bairro === 'Não informado' ? 'text-red-400' : 'text-gray-300'}`}>{c.bairro}</td>
-                    <td className="px-3 py-2">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: `${STATUS_MAP[c.status]?.color}22`, color: STATUS_MAP[c.status]?.color }}>
-                        {STATUS_MAP[c.status]?.label || c.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {selectedContacts.length > 50 && (
-            <p className="text-xs text-gray-500 mt-2 text-center">Mostrando 50 de {selectedContacts.length} contatos.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
