@@ -11,6 +11,7 @@ const BAIRROS_FRIBURGO = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'aguardando', label: 'Aguardando', color: '#F5A623' },
   { value: 'interagiu', label: 'Interagiu', color: '#00AACC' },
   { value: 'nao_interagiu', label: 'Não interagiu', color: '#9AA5B8' },
 ];
@@ -28,8 +29,8 @@ const STORAGE_KEY = 'crm-friburgo-data-v1';
 
 async function loadData() {
   try {
-    const res = await window.storage.get(STORAGE_KEY);
-    if (res && res.value) return JSON.parse(res.value);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
   } catch (e) {
     // not found yet
   }
@@ -38,108 +39,10 @@ async function loadData() {
 
 async function saveData(data) {
   try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error('Erro ao salvar', e);
   }
-}
-
-// ---------- Seed data ----------
-
-function seedContacts() {
-  const liderancas = ['Marcelo', 'Fofão', 'Maguila', 'Adriana', 'Sem indicação'];
-  const nomes = [
-    'Carla Souza', 'João Pedro', 'Ana Lima', 'Roberto Alves', 'Fernanda Costa',
-    'Diego Martins', 'Patrícia Reis', 'Lucas Pereira', 'Marina Dias', 'Eduardo Nunes',
-    'Claudia Ferreira', 'Rafael Teixeira', 'Sônia Barbosa', 'Paulo Mendes', 'Juliana Castro',
-    'Thiago Ramos', 'Beatriz Santos', 'Fábio Oliveira', 'Vanessa Lima', 'André Costa',
-    'Mônica Freitas', 'Leandro Gomes', 'Simone Rocha', 'Gustavo Almeida', 'Cintia Pinto',
-    'Wilson Correia', 'Natália Araújo', 'Rogério Silva', 'Eliane Martins', 'Carlos Souza'
-  ];
-  const origens = ['Base inicial', 'Lista de transmissão', 'Grupo de WhatsApp', 'Evento presencial', 'Indicação de liderança'];
-  const bairrosUsados = ['Centro', 'Olaria', 'Alto de Olaria', 'Conselheiro Paulino', 'Riograndina', 'Cônego', 'Cascatinha', 'Vila Amélia', 'Não informado'];
-  const out = [];
-  for (let i = 0; i < 30; i++) {
-    out.push({
-      id: `seed-${i}`,
-      nome: nomes[i],
-      telefone: `2299${String(800000 + i * 137).padStart(7, '0').slice(0, 7)}`,
-      bairro: i % 6 === 0 ? 'Não informado' : bairrosUsados[i % (bairrosUsados.length - 1)],
-      status: i % 3 === 0 ? 'nao_interagiu' : 'interagiu',
-      pauta: PAUTAS[i % PAUTAS.length],
-      lideranca: liderancas[i % liderancas.length],
-      origem: origens[i % origens.length],
-      ultimaEnquete: i % 2 === 0 ? 'Prioridades da Serra' : '',
-      criadoEm: new Date(Date.now() - i * 86400000).toISOString(),
-    });
-  }
-  return out;
-}
-
-function seedEnquetes() {
-  // Build rich respostasMap for simulation
-  const bairros = ['Centro', 'Olaria', 'Alto de Olaria', 'Conselheiro Paulino', 'Riograndina', 'Cônego', 'Cascatinha', 'Vila Amélia'];
-  const liderancas = ['Marcelo', 'Fofão', 'Maguila', 'Adriana', 'Sem indicação'];
-  const pautaOpcoes = ['Saúde', 'Transporte', 'Educação', 'Segurança', 'Emprego', 'Infraestrutura/Obras', 'Meio ambiente', 'Esporte e lazer'];
-
-  // Enquete 1 — pautas com distribuição realista
-  const respostasMap1 = {};
-  const enviados1 = [];
-  // peso por bairro: Centro prefere Saúde, Olaria prefere Transporte, etc.
-  const bairroPrefs = {
-    'Centro': ['Saúde', 'Educação', 'Segurança'],
-    'Olaria': ['Transporte', 'Emprego', 'Saúde'],
-    'Alto de Olaria': ['Emprego', 'Infraestrutura/Obras', 'Saúde'],
-    'Conselheiro Paulino': ['Educação', 'Saúde', 'Meio ambiente'],
-    'Riograndina': ['Infraestrutura/Obras', 'Transporte', 'Emprego'],
-    'Cônego': ['Meio ambiente', 'Saúde', 'Esporte e lazer'],
-    'Cascatinha': ['Saúde', 'Infraestrutura/Obras', 'Educação'],
-    'Vila Amélia': ['Segurança', 'Emprego', 'Transporte'],
-  };
-
-  for (let i = 0; i < 30; i++) {
-    const cid = `seed-${i}`;
-    const bairro = i % 6 === 0 ? 'Não informado' : bairros[i % bairros.length];
-    enviados1.push(cid);
-    if (i % 5 !== 0) { // 80% de taxa de resposta
-      const prefs = bairroPrefs[bairro] || pautaOpcoes;
-      respostasMap1[cid] = prefs[i % prefs.length];
-    }
-  }
-
-  // Enquete 2 — bairros
-  const respostasMap2 = {};
-  const enviados2 = [];
-  for (let i = 0; i < 20; i++) {
-    const cid = `seed-${i}`;
-    enviados2.push(cid);
-    if (i % 4 !== 0) { // 75% de taxa de resposta
-      respostasMap2[cid] = bairros[i % bairros.length];
-    }
-  }
-
-  return [
-    {
-      id: 'enq-1',
-      titulo: 'Prioridades da Serra',
-      pergunta: 'Qual o problema que mais te afeta em Nova Friburgo?',
-      opcoes: pautaOpcoes,
-      criadoEm: new Date(Date.now() - 7 * 86400000).toISOString(),
-      respostas: Object.keys(respostasMap1).length,
-      respostasMap: respostasMap1,
-      enviados: enviados1,
-    },
-    {
-      id: 'enq-2',
-      titulo: 'Censo de bairros',
-      pergunta: 'Para organizarmos melhor o atendimento na Serra, qual o seu bairro em Nova Friburgo?',
-      opcoes: bairros,
-      criadoEm: new Date(Date.now() - 3 * 86400000).toISOString(),
-      respostas: Object.keys(respostasMap2).length,
-      respostasMap: respostasMap2,
-      enviados: enviados2,
-    },
-  ];
 }
 
 // ---------- Main App ----------
@@ -158,8 +61,8 @@ export default function App() {
         setContacts(data.contacts || []);
         setEnquetes(data.enquetes || []);
       } else {
-        setContacts(seedContacts());
-        setEnquetes(seedEnquetes());
+        setContacts([]);
+        setEnquetes([]);
       }
       setLoaded(true);
     })();
@@ -173,14 +76,6 @@ export default function App() {
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
-  }
-
-  function resetToDemo() {
-    if (!window.confirm('Isso vai apagar todos os dados e carregar a simulação. Confirmar?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    setContacts(seedContacts());
-    setEnquetes(seedEnquetes());
-    showToast('Dados de simulação carregados');
   }
 
   const tabs = [
@@ -199,9 +94,26 @@ export default function App() {
         .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #1565C0; border-radius: 3px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: #0D1E6E; }
+        select.crm-select {
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          appearance: none !important;
+          background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%2300AACC' d='M4 6l4 4 4-4'/%3e%3c/svg%3e") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 0.7rem center !important;
+          background-size: 14px !important;
+          padding-right: 2.25rem !important;
+        }
+        select.crm-select::-ms-expand {
+          display: none;
+        }
+        select.crm-select option {
+          background: #0D1E6E;
+          color: #ffffff;
+        }
       `}</style>
 
-      <Header onReset={resetToDemo} />
+      <Header />
 
       <div className="max-w-6xl mx-auto px-4 pb-24">
         <nav className="flex gap-2 mt-4 mb-6 overflow-x-auto scrollbar-thin">
@@ -250,7 +162,7 @@ export default function App() {
 
 // ---------- Header ----------
 
-function Header({ onReset }) {
+function Header() {
   return (
     <header style={{ background: 'linear-gradient(135deg, #0D1E6E 0%, #0A1226 100%)', borderBottom: '1px solid rgba(0,170,204,0.3)' }}>
       <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
@@ -258,14 +170,9 @@ function Header({ onReset }) {
           <div className="font-mono text-xs tracking-widest" style={{ color: '#00AACC' }}>QG MARINS 2026 · MÓDULO S5</div>
           <h1 className="font-display text-2xl font-bold text-white mt-1">CRM Pré-Campanha — Nova Friburgo</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={onReset} className="text-xs px-3 py-1.5 rounded font-mono hidden sm:block" style={{ background: 'rgba(255,255,255,0.05)', color: '#9AA5B8', border: '1px solid rgba(255,255,255,0.1)' }}>
-            Carregar simulação
-          </button>
-          <div className="hidden sm:flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded" style={{ background: 'rgba(0,170,204,0.1)', color: '#00AACC', border: '1px solid rgba(0,170,204,0.3)' }}>
-            <span className="w-2 h-2 rounded-full" style={{ background: '#00AACC' }}></span>
-            OPERACIONAL
-          </div>
+        <div className="hidden sm:flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded" style={{ background: 'rgba(0,170,204,0.1)', color: '#00AACC', border: '1px solid rgba(0,170,204,0.3)' }}>
+          <span className="w-2 h-2 rounded-full" style={{ background: '#00AACC' }}></span>
+          OPERACIONAL
         </div>
       </div>
     </header>
@@ -293,7 +200,7 @@ function Painel({ contacts, enquetes }) {
   const statusStats = useMemo(() => {
     const counts = {};
     STATUS_OPTIONS.forEach(s => counts[s.value] = 0);
-    contacts.forEach(c => { counts[c.status || 'nao_interagiu'] = (counts[c.status || 'nao_interagiu'] || 0) + 1; });
+    contacts.forEach(c => { counts[c.status || 'aguardando'] = (counts[c.status || 'aguardando'] || 0) + 1; });
     return counts;
   }, [contacts]);
 
@@ -599,7 +506,7 @@ function Contatos({ contacts, setContacts, showToast }) {
   );
 }
 
-function ImportModal({ onImport, onClose }) {
+function ImportModal({ onImport, onClose, liderancaFixa }) {
   const [rows, setRows] = useState(null);
   const [headers, setHeaders] = useState([]);
   const [mapping, setMapping] = useState({});
@@ -612,7 +519,8 @@ function ImportModal({ onImport, onClose }) {
     { key: 'bairro', label: 'Bairro', required: false },
     { key: 'status', label: 'Status', required: false },
     { key: 'pauta', label: 'Pauta de interesse', required: false },
-    { key: 'lideranca', label: 'Liderança responsável', required: false },
+    { key: 'ultimaMensagem', label: 'Última mensagem recebida', required: false },
+    ...(liderancaFixa ? [] : [{ key: 'lideranca', label: 'Liderança responsável', required: false }]),
   ];
 
   async function handleFile(e) {
@@ -650,6 +558,7 @@ function ImportModal({ onImport, onClose }) {
           if (f.key === 'status') return norm.includes('status');
           if (f.key === 'pauta') return norm.includes('pauta');
           if (f.key === 'lideranca') return norm.includes('lideran') || norm.includes('indica');
+          if (f.key === 'ultimaMensagem') return norm.includes('mensagem') || norm.includes('observa');
           return false;
         });
         autoMap[f.key] = idx >= 0 ? idx : '';
@@ -665,10 +574,10 @@ function ImportModal({ onImport, onClose }) {
   }
 
   function normalizeStatus(value) {
-    if (!value) return 'nao_interagiu';
+    if (!value) return 'aguardando';
     const v = String(value).toLowerCase().trim();
     const found = STATUS_OPTIONS.find(s => s.value === v || s.label.toLowerCase() === v);
-    return found ? found.value : 'nao_interagiu';
+    return found ? found.value : 'aguardando';
   }
 
   function normalizeBairro(value) {
@@ -698,9 +607,10 @@ function ImportModal({ onImport, onClose }) {
           nome,
           telefone,
           bairro: mapping.bairro !== '' ? normalizeBairro(r[mapping.bairro]) : 'Não informado',
-          status: mapping.status !== '' ? normalizeStatus(r[mapping.status]) : 'nao_interagiu',
+          status: mapping.status !== '' ? normalizeStatus(r[mapping.status]) : 'aguardando',
           pauta: mapping.pauta !== '' ? String(r[mapping.pauta] || '') : '',
-          lideranca: mapping.lideranca !== '' ? String(r[mapping.lideranca] || '') : '',
+          ultimaMensagem: mapping.ultimaMensagem !== '' ? String(r[mapping.ultimaMensagem] || '') : '',
+          lideranca: liderancaFixa || (mapping.lideranca !== '' ? String(r[mapping.lideranca] || '') : ''),
           origem: 'Importação planilha',
           ultimaEnquete: '',
           criadoEm: new Date().toISOString(),
@@ -720,7 +630,10 @@ function ImportModal({ onImport, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
       <div className="w-full max-w-lg rounded-lg p-5 max-h-[90vh] overflow-y-auto scrollbar-thin" style={{ background: '#0D1E6E', border: '1px solid rgba(0,170,204,0.3)' }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold text-white text-lg">Importar contatos</h3>
+          <div>
+            <h3 className="font-display font-bold text-white text-lg">Importar contatos</h3>
+            {liderancaFixa && <p className="text-xs mt-0.5" style={{ color: '#00AACC' }}>Liderança: {liderancaFixa}</p>}
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={18} /></button>
         </div>
 
@@ -755,7 +668,7 @@ function ImportModal({ onImport, onClose }) {
                     <select
                       value={mapping[f.key] ?? ''}
                       onChange={e => updateMapping(f.key, e.target.value)}
-                      className="flex-1 px-2 py-1.5 rounded text-sm text-white"
+                      className="crm-select flex-1 px-2 py-1.5 rounded text-sm text-white"
                       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
                     >
                       <option value="">— não importar —</option>
@@ -810,7 +723,7 @@ function ImportModal({ onImport, onClose }) {
 
 function ContactForm({ contact, liderancaFixa, onSave, onClose }) {
   const [form, setForm] = useState(contact || {
-    nome: '', telefone: '', bairro: 'Não informado', status: 'nao_interagiu', pauta: '', lideranca: liderancaFixa || '', origem: 'Manual', ultimaEnquete: ''
+    nome: '', telefone: '', bairro: 'Não informado', status: 'aguardando', pauta: '', lideranca: liderancaFixa || '', origem: 'Manual', ultimaEnquete: '', ultimaMensagem: '', ultimaMensagemData: ''
   });
 
   function update(field, value) {
@@ -825,7 +738,7 @@ function ContactForm({ contact, liderancaFixa, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-      <div className="w-full max-w-md rounded-lg p-5" style={{ background: '#0D1E6E', border: '1px solid rgba(0,170,204,0.3)' }}>
+      <div className="w-full max-w-md rounded-lg p-5 max-h-[90vh] overflow-y-auto scrollbar-thin" style={{ background: '#0D1E6E', border: '1px solid rgba(0,170,204,0.3)' }}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-display font-bold text-white text-lg">{contact ? 'Editar contato' : 'Novo contato'}</h3>
@@ -841,20 +754,39 @@ function ContactForm({ contact, liderancaFixa, onSave, onClose }) {
             <input required value={form.telefone} onChange={e => update('telefone', e.target.value)} placeholder="22999999999" className="w-full px-3 py-2 rounded text-sm text-white font-mono" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
           </Field>
           <Field label="Bairro">
-            <select value={form.bairro} onChange={e => update('bairro', e.target.value)} className="w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <select value={form.bairro} onChange={e => update('bairro', e.target.value)} className="crm-select w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               {BAIRROS_FRIBURGO.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </Field>
           <Field label="Status">
-            <select value={form.status} onChange={e => update('status', e.target.value)} className="w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <select value={form.status} onChange={e => update('status', e.target.value)} className="crm-select w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </Field>
           <Field label="Pauta de interesse">
-            <select value={form.pauta} onChange={e => update('pauta', e.target.value)} className="w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <select value={form.pauta} onChange={e => update('pauta', e.target.value)} className="crm-select w-full px-3 py-2 rounded text-sm text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <option value="">Não informado</option>
               {PAUTAS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+          </Field>
+          <Field label="Última mensagem recebida">
+            <textarea
+              value={form.ultimaMensagem || ''}
+              onChange={e => update('ultimaMensagem', e.target.value)}
+              placeholder="Cole ou digite a última mensagem recebida deste contato..."
+              rows={3}
+              className="w-full px-3 py-2 rounded text-sm text-white resize-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </Field>
+          <Field label="Data da mensagem">
+            <input
+              type="date"
+              value={form.ultimaMensagemData || ''}
+              onChange={e => update('ultimaMensagemData', e.target.value)}
+              className="w-full px-3 py-2 rounded text-sm text-white"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
           </Field>
           {!liderancaFixa && (
             <Field label="Liderança responsável">
@@ -1355,7 +1287,7 @@ function EnqueteAnalytics({ enquete, contacts, onClose }) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400">Filtrar bairro:</span>
                     <select value={filterBairro} onChange={e => setFilterBairro(e.target.value)}
-                      className="px-2 py-1 rounded text-xs text-white"
+                      className="crm-select px-2 py-1 rounded text-xs text-white"
                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                       {bairrosComRespostas.map(b => <option key={b} value={b}>{b === 'todos' ? 'Todos os bairros' : b}</option>)}
                     </select>
@@ -1523,7 +1455,7 @@ function ApplyEnquete({ enquete, contacts, setContacts, setEnquetes, onClose, sh
               <select
                 value={responses[c.id] || ''}
                 onChange={e => setResponse(c.id, e.target.value)}
-                className="text-xs px-2 py-1 rounded text-white flex-shrink-0"
+                className="crm-select text-xs px-2 py-1 rounded text-white flex-shrink-0"
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 <option value="">— sem resposta —</option>
@@ -1554,7 +1486,9 @@ function Ranking({ contacts, setContacts, showToast }) {
   const [novaLiderancaNome, setNovaLiderancaNome] = useState('');
   const [showAddContato, setShowAddContato] = useState(null); // nome da liderança
   const [editingContato, setEditingContato] = useState(null);
+  const [showImportContato, setShowImportContato] = useState(null); // nome da liderança
   const [searchMap, setSearchMap] = useState({});
+  const [statusTabMap, setStatusTabMap] = useState({}); // liderança -> status atual selecionado
 
   const liderancas = useMemo(() => {
     const map = {};
@@ -1578,7 +1512,7 @@ function Ranking({ contacts, setContacts, showToast }) {
       nome: `(sem contatos)`,
       telefone: '',
       bairro: 'Não informado',
-      status: 'nao_interagiu',
+      status: 'aguardando',
       pauta: '',
       lideranca: nome,
       origem: 'Manual',
@@ -1612,9 +1546,21 @@ function Ranking({ contacts, setContacts, showToast }) {
     showToast('Contato removido');
   }
 
+  function handleImportContatos(newContacts) {
+    setContacts(prev => [
+      ...prev.filter(x => !(x.placeholder && x.lideranca === showImportContato)),
+      ...newContacts
+    ]);
+    showToast(`${newContacts.length} contatos importados`);
+    setShowImportContato(null);
+  }
+
   function toggleStatus(c) {
-    const novoStatus = c.status === 'interagiu' ? 'nao_interagiu' : 'interagiu';
+    const ordem = ['aguardando', 'interagiu', 'nao_interagiu'];
+    const atual = ordem.indexOf(c.status || 'aguardando');
+    const novoStatus = ordem[(atual + 1) % ordem.length];
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, status: novoStatus } : x));
+    showToast(`${c.nome} → ${STATUS_MAP[novoStatus]?.label}`);
   }
 
   function saveMeta(nome) {
@@ -1650,9 +1596,15 @@ function Ranking({ contacts, setContacts, showToast }) {
             const isOpen = expanded === l.nome;
             const search = searchMap[l.nome] || '';
             const contatosReais = l.contatos.filter(c => !c.placeholder);
+            const statusAtivo = statusTabMap[l.nome] || 'aguardando';
             const contatosFiltrados = contatosReais.filter(c =>
-              !search || c.nome.toLowerCase().includes(search.toLowerCase()) || c.telefone.includes(search)
+              (c.status || 'aguardando') === statusAtivo &&
+              (!search || c.nome.toLowerCase().includes(search.toLowerCase()) || c.telefone.includes(search))
             );
+            const contagemPorStatus = STATUS_OPTIONS.reduce((acc, s) => {
+              acc[s.value] = contatosReais.filter(c => (c.status || 'aguardando') === s.value).length;
+              return acc;
+            }, {});
 
             return (
               <div key={l.nome} className="rounded-lg overflow-hidden"
@@ -1711,6 +1663,13 @@ function Ranking({ contacts, setContacts, showToast }) {
                         />
                       </div>
                       <button
+                        onClick={() => setShowImportContato(l.nome)}
+                        className="flex items-center gap-1 px-3 py-2 rounded text-xs font-display font-semibold flex-shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: '#9AA5B8', border: '1px solid rgba(255,255,255,0.12)' }}
+                      >
+                        <Upload size={14} /> Planilha
+                      </button>
+                      <button
                         onClick={() => { setShowAddContato(l.nome); setEditingContato(null); }}
                         className="flex items-center gap-1 px-3 py-2 rounded text-xs font-display font-semibold flex-shrink-0"
                         style={{ background: '#1565C0', color: '#fff' }}
@@ -1719,22 +1678,65 @@ function Ranking({ contacts, setContacts, showToast }) {
                       </button>
                     </div>
 
+                    {/* Sub-abas de status */}
+                    <div className="flex px-3 gap-1 pb-2">
+                      {STATUS_OPTIONS.map(s => (
+                        <button
+                          key={s.value}
+                          onClick={() => setStatusTabMap(prev => ({ ...prev, [l.nome]: s.value }))}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-display font-semibold uppercase tracking-wide transition-colors"
+                          style={{
+                            background: statusAtivo === s.value ? `${s.color}22` : 'rgba(255,255,255,0.03)',
+                            color: statusAtivo === s.value ? s.color : '#9AA5B8',
+                            border: statusAtivo === s.value ? `1px solid ${s.color}` : '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        >
+                          {s.label}
+                          <span className="font-mono" style={{ opacity: 0.8 }}>{contagemPorStatus[s.value] || 0}</span>
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="max-h-72 overflow-y-auto scrollbar-thin">
                       {contatosFiltrados.length === 0 ? (
                         <div className="text-center py-6 text-xs text-gray-500">
-                          {contatosReais.length === 0 ? 'Nenhum contato ainda. Adicione o primeiro.' : 'Nenhum resultado para a busca.'}
+                          {contatosReais.length === 0
+                            ? 'Nenhum contato ainda. Adicione o primeiro.'
+                            : search
+                              ? 'Nenhum resultado para a busca.'
+                              : `Nenhum contato em "${STATUS_MAP[statusAtivo]?.label}".`}
                         </div>
                       ) : contatosFiltrados.map(c => (
-                        <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                        <div
+                          key={c.id}
+                          className="flex items-start gap-2 px-3 py-2.5 border-t cursor-pointer transition-colors hover:bg-white/5"
+                          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+                          onClick={() => { setEditingContato(c); setShowAddContato(l.nome); }}
+                        >
                           <div className="flex-1 min-w-0">
                             <div className="text-sm text-white truncate">{c.nome}</div>
                             <div className="flex gap-2 mt-0.5 text-xs text-gray-400">
                               <span className="font-mono">{c.telefone}</span>
-                              {c.bairro && c.bairro !== 'Não informado' && <span>· {c.bairro}</span>}
+                              {c.bairro && c.bairro !== 'Não informado' ? (
+                                <span>· {c.bairro}</span>
+                              ) : (
+                                <span style={{ color: '#F5A623' }}>· bairro pendente</span>
+                              )}
                               {c.pauta && <span>· {c.pauta}</span>}
                             </div>
+                            {c.ultimaMensagem && (
+                              <div className="flex items-start gap-1 mt-1.5 text-xs" style={{ color: '#9AA5B8' }}>
+                                <MessageCircle size={11} className="mt-0.5 flex-shrink-0" style={{ color: '#00AACC' }} />
+                                <span className="truncate">{c.ultimaMensagem}</span>
+                                {c.ultimaMensagemData && (
+                                  <span className="flex-shrink-0 text-gray-500">
+                                    · {new Date(c.ultimaMensagemData + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                             <button
                               onClick={() => toggleStatus(c)}
                               className="text-xs px-2 py-1 rounded font-medium"
@@ -1807,6 +1809,15 @@ function Ranking({ contacts, setContacts, showToast }) {
           liderancaFixa={showAddContato}
           onSave={c => handleSaveContato(c, showAddContato)}
           onClose={() => { setShowAddContato(null); setEditingContato(null); }}
+        />
+      )}
+
+      {/* Modal: importar contatos via planilha */}
+      {showImportContato && (
+        <ImportModal
+          liderancaFixa={showImportContato}
+          onImport={handleImportContatos}
+          onClose={() => setShowImportContato(null)}
         />
       )}
 
