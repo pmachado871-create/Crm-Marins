@@ -11,9 +11,10 @@ const BAIRROS_FRIBURGO = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'nao_enviado', label: 'Não enviado', color: '#9AA5B8' },
   { value: 'aguardando', label: 'Aguardando', color: '#F5A623' },
   { value: 'interagiu', label: 'Interagiu', color: '#00AACC' },
-  { value: 'nao_interagiu', label: 'Não interagiu', color: '#9AA5B8' },
+  { value: 'nao_interagiu', label: 'Não interagiu', color: '#D64545' },
 ];
 
 const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s]));
@@ -200,7 +201,7 @@ function Painel({ contacts, enquetes }) {
   const statusStats = useMemo(() => {
     const counts = {};
     STATUS_OPTIONS.forEach(s => counts[s.value] = 0);
-    contacts.forEach(c => { counts[c.status || 'aguardando'] = (counts[c.status || 'aguardando'] || 0) + 1; });
+    contacts.forEach(c => { counts[c.status || 'nao_enviado'] = (counts[c.status || 'nao_enviado'] || 0) + 1; });
     return counts;
   }, [contacts]);
 
@@ -574,10 +575,10 @@ function ImportModal({ onImport, onClose, liderancaFixa }) {
   }
 
   function normalizeStatus(value) {
-    if (!value) return 'aguardando';
+    if (!value) return 'nao_enviado';
     const v = String(value).toLowerCase().trim();
     const found = STATUS_OPTIONS.find(s => s.value === v || s.label.toLowerCase() === v);
-    return found ? found.value : 'aguardando';
+    return found ? found.value : 'nao_enviado';
   }
 
   function normalizeBairro(value) {
@@ -607,7 +608,7 @@ function ImportModal({ onImport, onClose, liderancaFixa }) {
           nome,
           telefone,
           bairro: mapping.bairro !== '' ? normalizeBairro(r[mapping.bairro]) : 'Não informado',
-          status: mapping.status !== '' ? normalizeStatus(r[mapping.status]) : 'aguardando',
+          status: mapping.status !== '' ? normalizeStatus(r[mapping.status]) : 'nao_enviado',
           pauta: mapping.pauta !== '' ? String(r[mapping.pauta] || '') : '',
           ultimaMensagem: mapping.ultimaMensagem !== '' ? String(r[mapping.ultimaMensagem] || '') : '',
           lideranca: liderancaFixa || (mapping.lideranca !== '' ? String(r[mapping.lideranca] || '') : ''),
@@ -723,7 +724,7 @@ function ImportModal({ onImport, onClose, liderancaFixa }) {
 
 function ContactForm({ contact, liderancaFixa, onSave, onClose }) {
   const [form, setForm] = useState(contact || {
-    nome: '', telefone: '', bairro: 'Não informado', status: 'aguardando', pauta: '', lideranca: liderancaFixa || '', origem: 'Manual', ultimaEnquete: '', ultimaMensagem: '', ultimaMensagemData: ''
+    nome: '', telefone: '', bairro: 'Não informado', status: 'nao_enviado', pauta: '', lideranca: liderancaFixa || '', origem: 'Manual', ultimaEnquete: '', ultimaMensagem: '', ultimaMensagemData: ''
   });
 
   function update(field, value) {
@@ -1512,7 +1513,7 @@ function Ranking({ contacts, setContacts, showToast }) {
       nome: `(sem contatos)`,
       telefone: '',
       bairro: 'Não informado',
-      status: 'aguardando',
+      status: 'nao_enviado',
       pauta: '',
       lideranca: nome,
       origem: 'Manual',
@@ -1556,8 +1557,8 @@ function Ranking({ contacts, setContacts, showToast }) {
   }
 
   function toggleStatus(c) {
-    const ordem = ['aguardando', 'interagiu', 'nao_interagiu'];
-    const atual = ordem.indexOf(c.status || 'aguardando');
+    const ordem = ['nao_enviado', 'aguardando', 'interagiu', 'nao_interagiu'];
+    const atual = ordem.indexOf(c.status || 'nao_enviado');
     const novoStatus = ordem[(atual + 1) % ordem.length];
     setContacts(prev => prev.map(x => x.id === c.id ? { ...x, status: novoStatus } : x));
     showToast(`${c.nome} → ${STATUS_MAP[novoStatus]?.label}`);
@@ -1596,13 +1597,13 @@ function Ranking({ contacts, setContacts, showToast }) {
             const isOpen = expanded === l.nome;
             const search = searchMap[l.nome] || '';
             const contatosReais = l.contatos.filter(c => !c.placeholder);
-            const statusAtivo = statusTabMap[l.nome] || 'aguardando';
+            const statusAtivo = statusTabMap[l.nome] || 'nao_enviado';
             const contatosFiltrados = contatosReais.filter(c =>
-              (c.status || 'aguardando') === statusAtivo &&
+              (c.status || 'nao_enviado') === statusAtivo &&
               (!search || c.nome.toLowerCase().includes(search.toLowerCase()) || c.telefone.includes(search))
             );
             const contagemPorStatus = STATUS_OPTIONS.reduce((acc, s) => {
-              acc[s.value] = contatosReais.filter(c => (c.status || 'aguardando') === s.value).length;
+              acc[s.value] = contatosReais.filter(c => (c.status || 'nao_enviado') === s.value).length;
               return acc;
             }, {});
 
