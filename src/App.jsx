@@ -2032,7 +2032,10 @@ function Fontes({ contacts, setContacts, showToast }) {
       if (c.status === 'interagiu') map[origem].interagiu += 1;
       if (c.bairro && c.bairro !== 'Não informado') map[origem].comBairro += 1;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);const total = contacts.length;
+    return Object.values(map).sort((a, b) => b.total - a.total);
+   }, [contacts]);
+
+  const total = contacts.length;
 
   const selectedContacts = useMemo(() => {
     if (!selected) return [];
@@ -2102,7 +2105,8 @@ function Fontes({ contacts, setContacts, showToast }) {
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#1565C0' }}></div>
                 </div>
 
-                <div className="flex gap-4 mt-2 text-xs text-gray-400"><span>{pct}% da base</span>
+                <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                  <span>{pct}% da base</span>
                   <span>{f.interagiu} interagiram</span>
                   <span>{f.comBairro} c/ bairro</span>
                 </div>
@@ -2164,4 +2168,9 @@ function Fontes({ contacts, setContacts, showToast }) {
     </div>
   );
 }
-                  
+          )}
+        </div>
+      )}
+    </div>
+  );
+} 
