@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   { value: 'nao_enviado', label: 'Não enviado', color: '#9AA5B8' },
   { value: 'aguardando', label: 'Aguardando', color: '#F5A623' },
   { value: 'interagiu', label: 'Interagiu', color: '#00AACC' },
-  { value: 'nao_interagiu', label: 'Não interagiu', color: '#D64545' },
+  { value: 'nao_interagiu', label: 'Não interagiu', color: '#D64545' },0
 ];
 
 const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s]));
@@ -2168,9 +2168,4 @@ function Fontes({ contacts, setContacts, showToast }) {
     </div>
   );
 }
-          )}
-        </div>
-      )}
-    </div>
-  );
-} 
+          
