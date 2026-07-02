@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   { value: 'nao_enviado', label: 'Não enviado', color: '#9AA5B8' },
   { value: 'aguardando', label: 'Aguardando', color: '#F5A623' },
   { value: 'interagiu', label: 'Interagiu', color: '#00AACC' },
-  { value: 'nao_interagiu', label: 'Não interagiu', color: '#D64545' },0
+  { value: 'nao_interagiu', label: 'Não interagiu', color: '#D64545' },
 ];
 
 const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s]));
@@ -49,6 +49,23 @@ async function saveData(data) {
   } catch (e) {
     console.error('Erro ao salvar no Firestore', e);
   }
+}
+
+function exportFullData(contacts, enquetes) {
+  const payload = {
+    exportadoEm: new Date().toISOString(),
+    totalContatos: contacts.length,
+    totalEnquetes: enquetes.length,
+    contacts,
+    enquetes,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `crm_export_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function subscribeToData(callback) {
@@ -267,7 +284,7 @@ function App({ user }) {
         }
       `}</style>
 
-      <Header user={user} syncing={syncing} onLogout={handleLogout} />
+      <Header user={user} syncing={syncing} onLogout={handleLogout} onExport={() => exportFullData(contacts, enquetes)} />
 
       <div className="max-w-6xl mx-auto px-4 pb-24">
         <nav className="flex gap-2 mt-4 mb-6 overflow-x-auto scrollbar-thin">
@@ -316,7 +333,7 @@ function App({ user }) {
 
 // ---------- Header ----------
 
-function Header({ user, syncing, onLogout }) {
+function Header({ user, syncing, onLogout, onExport }) {
   return (
     <header style={{ background: 'linear-gradient(135deg, #0D1E6E 0%, #0A1226 100%)', borderBottom: '1px solid rgba(0,170,204,0.3)' }}>
       <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between gap-3">
@@ -332,6 +349,15 @@ function Header({ user, syncing, onLogout }) {
           {user?.email && (
             <span className="hidden lg:inline text-xs text-gray-400 max-w-[160px] truncate">{user.email}</span>
           )}
+          <button
+            onClick={onExport}
+            title="Exportar base completa em JSON"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium"
+            style={{ background: 'rgba(0,170,204,0.1)', color: '#00AACC', border: '1px solid rgba(0,170,204,0.3)' }}
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Exportar</span>
+          </button>
           <button
             onClick={onLogout}
             title="Encerrar sessão"
@@ -2006,7 +2032,7 @@ function Ranking({ contacts, setContacts, showToast }) {
               </Field>
               <div className="flex gap-2 pt-2">
                 <button onClick={() => setShowMeta(null)} className="flex-1 py-2.5 rounded-lg text-sm text-gray-300" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>Cancelar</button>
-                <button onClick={() => saveMeta(showMeta)} className="flex-1 py-2.5 rounded-lg text-sm font-display font-semibold" style={{ background: '#00AACC', color: '#0A1226' }}>Salvar</button>
+          <button onClick={() => saveMeta(showMeta)} className="flex-1 py-2.5 rounded-lg text-sm font-display font-semibold" style={{ background: '#00AACC', color: '#0A1226' }}>Salvar</button>
               </div>
             </div>
           </div>
@@ -2092,7 +2118,7 @@ function Fontes({ contacts, setContacts, showToast }) {
                       onClick={e => e.stopPropagation()}
                       onBlur={confirmRename}
                       onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(null); }}
-                      className="flex-1 px-2 py-1 rounded text-sm text-white font-display font-semibold"
+                      className="flex-1 px-2 py-1 rounded text-sm te
                       style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #00AACC' }}
                     />
                   ) : (
@@ -2168,4 +2194,3 @@ function Fontes({ contacts, setContacts, showToast }) {
     </div>
   );
 }
-          
