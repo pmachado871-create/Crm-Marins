@@ -2095,7 +2095,7 @@ function Fontes({ contacts, setContacts, showToast }) {
       {fontes.length === 0 ? (
         <EmptyState text="Nenhuma fonte registrada ainda." />
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
+<div className="grid sm:grid-cols-2 gap-3">
           {fontes.map(f => {
             const pct = total > 0 ? Math.round((f.total / total) * 100) : 0;
             const isSelected = selected === f.nome;
@@ -2118,7 +2118,7 @@ function Fontes({ contacts, setContacts, showToast }) {
                       onClick={e => e.stopPropagation()}
                       onBlur={confirmRename}
                       onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(null); }}
-                      className="flex-1 px-2 py-1 rounded text-sm te
+                      className="flex-1 px-2 py-1 rounded text-sm text-white font-display font-semibold"
                       style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #00AACC' }}
                     />
                   ) : (
